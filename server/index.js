@@ -5,7 +5,7 @@ import { generateResearch, refineResearch, createPost } from './services/geminiS
 import pool from './db.js';
 
 const app = express();
-app.use(cors());
+app.use(cors(['https://research-writer-duo.vercel.app/', 'http://localhost:5173/']));
 app.use(express.json());
 
 app.post('/api/research', async (req, res) => {
