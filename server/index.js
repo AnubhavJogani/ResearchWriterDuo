@@ -72,5 +72,5 @@ app.post('/api/createPost', async (req, res) => {
 
 
 
-app.listen(process.env.PORT || 3001, () => {  console.log(`Server is running on port ${process.env.PORT}`);
+app.listen(process.env.PORT || 3001, '0.0.0.0', () => {  console.log(`Server is running on port ${process.env.PORT}`);
 });
