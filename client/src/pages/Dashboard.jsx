@@ -10,11 +10,13 @@ const Dashboard = () => {
   const [id, setId] = useState(null);
   const [postModeIsOpen, setPostModeIsOpen] = useState(false);
 
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
   const handleSearch = async () => {
     if (!searchTerm) return;
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/research', {
+      const response = await fetch(`${API_BASE}/api/research`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic: searchTerm })
@@ -36,7 +38,7 @@ const Dashboard = () => {
   const handleRefine = async () => {
     setModeIsOpen(false);
     try {
-      const response = await fetch('http://localhost:3001/api/refine', {
+      const response = await fetch(`${API_BASE}/api/refine`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, feedback: refineDetails })
@@ -54,7 +56,7 @@ const Dashboard = () => {
   const handleCreatePost = async () => {
     setPostModeIsOpen(false);
     try {
-      const response = await fetch('http://localhost:3001/api/createPost', {
+      const response = await fetch(`${API_BASE}/api/createPost`, {
         method: 'POST',
         headers: { 'Content-Type' : 'application/json'},
         body: JSON.stringify({ id })
