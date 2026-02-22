@@ -12,7 +12,7 @@ import { initializePassport } from './passport-config.js';
 const app = express();
 const PostgresStore = pgSession(session);
 app.use(cors({
-    origin: ['https://research-writer-duo.vercel.app', 'http://localhost:5173'],
+    origin: ['https://research-writer-duo.vercel.app', 'https://research-writer-duo.vercel.app/', 'http://localhost:5173'],
     credentials: true
 }));
 app.use(express.json());
