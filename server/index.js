@@ -17,15 +17,18 @@ app.use(cors({
 }));
 app.use(express.json());
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 app.use(session({
     store: new PostgresStore({ pool: pool }),
     secret: process.env.SESSION_SECRET || 'default_secret',
     resave: false,
     saveUninitialized: false,
+    proxy: isProduction,
     cookie: {
         maxAge: 30 * 24 * 60 * 60 * 1000,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax'
     }
 }))
 
@@ -44,6 +47,8 @@ const checkAccess = (req, res, next) => {
 
     res.status(401).json({ error: "Unauthorized. Please log in or continue as guest." });
 };
+
+app.set('trust proxy', 1);
 
 app.post('/api/guest-init', (req, res) => {
     if (!req.session.guestId) {
