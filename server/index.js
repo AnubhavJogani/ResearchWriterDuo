@@ -3,12 +3,101 @@ import cors from 'cors';
 import 'dotenv/config';
 import { generateResearch, refineResearch, createPost } from './services/geminiService.js';
 import pool from './db.js';
+import passport from 'passport';
+import session from 'express-session';
+import pgSession from 'connect-pg-simple';
+import argon2 from 'argon2';
+import { initializePassport } from './passport-config.js';
 
 const app = express();
-app.use(cors(['https://research-writer-duo.vercel.app/', 'http://localhost:5173/']));
+const PostgresStore = pgSession(session);
+app.use(cors({
+    origin: ['https://research-writer-duo.vercel.app', 'http://localhost:5173'],
+    credentials: true
+}));
 app.use(express.json());
 
-app.post('/api/research', async (req, res) => {
+app.use(session({
+    store: new PostgresStore({ pool: pool }),
+    secret: process.env.SESSION_SECRET || 'default_secret',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    }
+}))
+
+initializePassport(passport);
+app.use(passport.initialize());
+app.use(passport.session());
+
+const checkAccess = (req, res, next) => {
+    if (req.isAuthenticated()) {
+        return next();
+    }
+
+    if (req.session && req.session.guestId) {
+        return next();
+    }
+
+    res.status(401).json({ error: "Unauthorized. Please log in or continue as guest." });
+};
+
+app.post('/api/guest-init', (req, res) => {
+    if (!req.session.guestId) {
+        req.session.guestId = `guest_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    }
+    req.session.cookie.maxAge = 24 * 60 * 60 * 1000;
+
+    req.session.save((err) => {
+        if (err) return res.status(500).json({ success: false });
+        res.json({ success: true, guestId: req.session.guestId });
+    });
+});
+
+app.post('/api/login', (req, res, next) => {
+    passport.authenticate('local', (err, user, info) => {
+        if (err) return res.status(500).json({ error: "Internal server error." });
+
+        if (!user) {
+            return res.status(401).json({ error: info.message || "Invalid credentials." });
+        }
+
+        req.logIn(user, (err) => {
+            if (err) return next(err);
+
+            req.session.save((err) => {
+                if (err) return next(err);
+                return res.json({ success: true, user: { id: user.id, username: user.username } });
+            });
+        });
+    })(req, res, next);
+});
+
+
+app.post('/api/signup', async (req, res) => {
+    const { username, password } = req.body;
+    try {
+        const chekUserQuery = `SELECT id FROM users WHERE username = $1;`;
+        const checkResult = await pool.query(chekUserQuery, [username]);
+        if (checkResult.rows.length > 0) {
+            return res.status(400).json({ error: "Username already exists." });
+        }
+        const passwordHash = await argon2.hash(password);
+        const insertQuery = `INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id;`;
+        const dbResult = await pool.query(insertQuery, [username, passwordHash]);
+        res.json({ success: true, userId: dbResult.rows[0].id });
+    } catch (error) {
+        console.error("Error during signup:", error);
+        res.status(500).json({ error: "Internal server error." });
+    };
+});
+
+app.post('/api/logout', (req, res) => { req.logout(() => res.json({ success: true })); });
+
+app.post('/api/research', checkAccess, async (req, res) => {
     const { topic } = req.body;
     console.log(`Received research request for topic: ${topic}`);
     try {
@@ -29,7 +118,7 @@ app.post('/api/research', async (req, res) => {
     }
 });
 
-app.post('/api/refine', async (req, res) => {
+app.post('/api/refine', checkAccess,  async (req, res) => {
     const { id, feedback } = req.body;
     console.log(`Received refinement request for report ID: ${id} with feedback: ${feedback}`);
     const query = `SELECT raw_report FROM research_reports WHERE id = $1;`;
@@ -49,7 +138,8 @@ app.post('/api/refine', async (req, res) => {
     }
 });
 
-app.post('/api/createPost', async (req, res) => {
+app.post('/api/createPost', checkAccess, async (req, res) => {
+    console.log(req)
     const { id } = req.body;
     console.log(`Received create post request for report ID: ${id}`);
     const query = `SELECT refined_report, raw_report FROM research_reports WHERE id = $1;`;
