@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Markdown from 'react-markdown';
 
 const Dashboard = () => {
@@ -19,7 +19,8 @@ const Dashboard = () => {
       const response = await fetch(`${API_BASE}/api/research`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: searchTerm })
+        body: JSON.stringify({ topic: searchTerm }),
+        credentials: 'include'
       });
 
       if (!response.ok) throw new Error(`Server status: ${response.status}`);
@@ -41,7 +42,8 @@ const Dashboard = () => {
       const response = await fetch(`${API_BASE}/api/refine`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, feedback: refineDetails })
+        body: JSON.stringify({ id, feedback: refineDetails }),
+        credentials: 'include'
       });
       if (!response.ok) throw new Error(`Server status: ${response.status}`);
       const json = await response.json();
@@ -59,7 +61,8 @@ const Dashboard = () => {
       const response = await fetch(`${API_BASE}/api/createPost`, {
         method: 'POST',
         headers: { 'Content-Type' : 'application/json'},
-        body: JSON.stringify({ id })
+        body: JSON.stringify({ id }),
+        credentials: 'include'
       });
       if (!response.ok) throw new Error(`Server status: ${response.status}`);
       const json = await response.json();
@@ -78,7 +81,7 @@ const Dashboard = () => {
       <div className='flex gap-4 w-full max-w-2xl'>
         <input
           type="text"
-          className='border-2 border-gray-300 rounded-md p-2 flex-grow outline-none focus:border-blue-500'
+          className='border-2 border-gray-300 rounded-md p-2 grow outline-none focus:border-blue-500'
           placeholder='Enter Research Topic'
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
