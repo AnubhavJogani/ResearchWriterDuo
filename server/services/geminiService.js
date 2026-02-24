@@ -12,7 +12,7 @@ export const generateResearch = async (topic) => {
         return response.text;
     } catch (error) {
         console.error("Gemini Error:", error);
-        return "Error generating research.";
+        throw new Error(error || "Failed to generate research.");
     }
 };
 
@@ -52,11 +52,11 @@ export const refineResearch = async (rawContent, feedback = "") => {
         return response.text;
     } catch (error) {
         console.error("Refiner Agent Error:", error);
-        throw new Error("Agent B failed to refine the content.");
+        throw new Error(error || "Failed to refine the content.");
     }
 };
 
-export const createPost = async (content) => {
+export const createPost = async (content, requirements = "") => {
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
@@ -76,7 +76,7 @@ export const createPost = async (content) => {
             contents: [
                 {
                     role: 'user',
-                    parts: [{ text: `Transform this content into exactly ONE LinkedIn post: \n\n${content}` }]
+                    parts: [{ text: `Transform this content into exactly ONE LinkedIn post: \n\n${content}\n\nREQUIREMENTS: ${requirements}` }]
                 }
             ],
             generationConfig: {
@@ -86,6 +86,6 @@ export const createPost = async (content) => {
         return response.text;
     } catch (error) {
         console.error("Post Creator Agent Error:", error);
-        throw new Error("Agent C failed to create the post.");
+        throw new Error(error || "Failed to create the post.");
     }
 };

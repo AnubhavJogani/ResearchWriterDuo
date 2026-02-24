@@ -102,51 +102,64 @@ app.post('/api/signup', async (req, res) => {
 
 app.post('/api/logout', (req, res) => { req.logout(() => res.json({ success: true })); });
 
+app.get('/api/history', checkAccess, async (req, res) => {
+    const userId = req.user ? req.user.id : null;
+    const guestId = req.session.guestId || null;
+    const query = `SELECT id, topic, raw_report, refined_report, final_post, steps FROM research_reports 
+                   WHERE (user_id = $1) OR (guest_id = $2) 
+                   ORDER BY created_at DESC;`;
+    try {
+        const dbResult = await pool.query(query, [userId, guestId]);
+        res.json({ history: dbResult.rows });
+    } catch (error) {
+        console.error("Error fetching history:", error);
+        res.status(500).json({ error: "Failed to fetch history." });
+    };
+
+});
+
 app.post('/api/research', checkAccess, async (req, res) => {
     const { topic } = req.body;
     console.log(`Received research request for topic: ${topic}`);
     try {
         const result = await generateResearch(topic);
-        const query = `INSERT INTO research_reports (topic, raw_report) VALUES ($1, $2) RETURNING id;`;
-        const values = [topic, result];
+        const query = `INSERT INTO research_reports (topic, raw_report, user_id, guest_id) VALUES ($1, $2, $3, $4) RETURNING id;`;
+        const values = [topic, result, req.user ? req.user.id : null, req.session.guestId || null];
 
         const dbResult = await pool.query(query, values);
-        const newId = dbResult.rows[0].id;
         res.json({
-            id: newId,
-            result: result
+            raw_report: result,
+            id: dbResult.rows[0].id,
+            steps: 1
         });
 
     } catch (error) {
         console.error("Database or AI Error:", error);
-        res.status(500).json({ error: "Something went wrong on the backend." });
+        res.status(500).json({ error: error.message || "Something went wrong while generating research." });
     }
 });
 
 app.post('/api/refine', checkAccess,  async (req, res) => {
-    const { id, feedback } = req.body;
-    console.log(`Received refinement request for report ID: ${id} with feedback: ${feedback}`);
-    const query = `SELECT raw_report FROM research_reports WHERE id = $1;`;
+    const { feedback, id } = req.body;
+    const query = `SELECT raw_report, refined_report, steps FROM research_reports WHERE id = $1;`;
     try {
         const dbResult = await pool.query(query, [id]);
         if (dbResult.rows.length === 0) {
             return res.status(404).json({ error: "Report not found." });
         }
-        const rawContent = dbResult.rows[0].raw_report;
+        const rawContent = dbResult.rows[0].refined_report || dbResult.rows[0].raw_report;
+        const steps = dbResult.rows[0].steps > 2 ? dbResult.rows[0].steps : 2;
         const refinedContent = await refineResearch(rawContent, feedback);
-        const updateQuery = `UPDATE research_reports SET refined_report = $1 WHERE id = $2;`;
-        await pool.query(updateQuery, [refinedContent, id]);
-        res.json({ refinedReport: refinedContent });
+        const updateQuery = `UPDATE research_reports SET refined_report = $1, steps = $2 WHERE id = $3;`;
+        await pool.query(updateQuery, [refinedContent, steps, id]);
+        res.json({ refined_report: refinedContent, steps: steps });
     } catch (error) {
-        console.error("Error refining report:", error);
-        res.status(500).json({ error: "Failed to refine the report." });
+        res.status(500).json({ error: error.message || "Something went wrong while refining the report." });
     }
 });
 
 app.post('/api/createPost', checkAccess, async (req, res) => {
-    console.log(req)
-    const { id } = req.body;
-    console.log(`Received create post request for report ID: ${id}`);
+    const { id , requirements } = req.body;
     const query = `SELECT refined_report, raw_report FROM research_reports WHERE id = $1;`;
     try {
         const dbResult = await pool.query(query, [id]);
@@ -156,13 +169,12 @@ app.post('/api/createPost', checkAccess, async (req, res) => {
         const refinedContent = dbResult.rows[0].refined_report;
         const rawContent = dbResult.rows[0].raw_report;
         let content = refinedContent || rawContent;
-        const postContent = await createPost(content);
-        const updateQuery = `UPDATE research_reports SET final_post = $1 WHERE id = $2;`;
-        await pool.query(updateQuery, [postContent, id]);
-        res.json({ postContent: postContent });
+        const postContent = await createPost(content, requirements);
+        const updateQuery = `UPDATE research_reports SET final_post = $1, steps = $2 WHERE id = $3;`;
+        await pool.query(updateQuery, [postContent, 3, id]);
+        res.json({ final_post: postContent, steps: 3 });
     } catch (error) {
-        console.error("Error creating post:", error);
-        res.status(500).json({ error: "Failed to create the post." });
+        res.status(500).json({ error: error.message || "Something went wrong while creating the post." });
     }});
 
 
