@@ -273,7 +273,7 @@ const Dashboard = () => {
         }
       >
         <textarea
-          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm focus:outline-none focus:border-cyan-500 min-h-[120px]"
+          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm focus:outline-none focus:border-cyan-500 min-h-30"
           placeholder="Specify focus areas or corrections..."
           value={refineDetails}
           onChange={(e) => setRefineDetails(e.target.value)}
@@ -303,7 +303,7 @@ const Dashboard = () => {
         }
       >
         <textarea
-          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm focus:outline-none focus:border-cyan-500 min-h-[120px]"
+          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm focus:outline-none focus:border-cyan-500 min-h-30"
           placeholder="Specify post-processing requirements if any..."
           value={postModeDetails}
           onChange={(e) => setPostModeDetails(e.target.value)}

@@ -1,8 +1,17 @@
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 
 const LandingPage = () => {
     const navigate = useNavigate();
     const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    const hasAlerted = useRef(false);;
+
+    useEffect(() => {
+        if (!hasAlerted.current) {
+            alert("Welcome to the Researcher Writer Duo demo! connecting to backend can take up to 10-20 seconds on the first load, please be patient :)");
+            hasAlerted.current = true;
+        }
+    }, []);
 
     const handleGuestLogin = async () => {
         try {
